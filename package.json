@@ -1,0 +1,26 @@
+{
+  "name": "newssense",
+  "version": "1.0.0",
+  "main": "get_json.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ParamPatel14/NewsSense.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ParamPatel14/NewsSense/issues"
+  },
+  "homepage": "https://github.com/ParamPatel14/NewsSense#readme",
+  "description": "",
+  "devDependencies": {
+    "dotenv": "^16.5.0"
+  },
+  "dependencies": {
+    "request": "^2.88.2"
+  }
+}
