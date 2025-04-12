@@ -1,11 +1,15 @@
+import matplotlib
+matplotlib.use('Agg')
 import spacy
 import requests
 import yfinance as yf
 import json
 import matplotlib.pyplot as plt
-
+from PIL import Image
+import io
 # Load spaCy model
 nlp = spacy.load("en_core_web_sm")
+import os
 
 
 def extract_company_name(query):
@@ -55,43 +59,100 @@ def show_yesterdays_stock_change(ticker, name):
         print("Error fetching yesterday's stock data:", e)
 
 
-def plot_5_day_trend(ticker, name):
+
+    
+def plot_5_day_trend(ticker, name, url="./stock_images"):
+    """
+    Fetches 5-day stock data for a given ticker, plots the closing price trend,
+    opens and saves the plot as a PNG image using Pillow, and returns the file path.
+
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL').
+        name (str): The name of the stock/company for the plot title and filename.
+        url (str): The directory path to save the image file. Defaults to './stock_images'.
+
+    Returns:
+        str or None: The full file path of the saved image, or None if an error occurred
+                     or no data was available.
+    """
+    file_path = None  # Initialize file_path to None, returned on failure
     try:
+        # Ensure the target directory exists, create if it doesn't
+        os.makedirs(url, exist_ok=True)
+        # Define the full path for the image file
+        file_path = os.path.join(url, f"{name}.png")
+
+        # Fetch stock data using yfinance
         stock = yf.Ticker(ticker)
+        # Fetch 5 days of daily data
         hist = stock.history(period='5d', interval='1d')
 
+        # Check if data was retrieved
         if hist.empty:
-            print("No data available for 5-day trend.")
-            return
+            print(f"No data available for 5-day trend for {ticker}.")
+            return None # Return None explicitly if no data
 
+        # Create the plot using matplotlib
         plt.figure(figsize=(10, 5))
-        plt.plot(hist.index, hist['Close'], marker='o', linestyle='-', color='blue', label='Close Price')
+        # Format date for better readability on the x-axis
+        plt.plot(hist.index.strftime('%Y-%m-%d'), hist['Close'], marker='o', linestyle='-', color='blue', label='Close Price')
         plt.title(f"5-Day Stock Price Trend for {name} ({ticker})")
         plt.xlabel("Date")
         plt.ylabel("Close Price (USD)")
         plt.grid(True)
-        plt.xticks(rotation=45)
+        plt.xticks(rotation=45) # Rotate date labels for better fit
         plt.legend()
-        plt.tight_layout()
-        plt.show()
+        plt.tight_layout() # Adjust plot for tight layout
+
+        # Save the plot to an in-memory buffer (BytesIO)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='PNG')
+        plt.close() # Close the plot figure to free up memory
+        buf.seek(0) # Rewind the buffer to the beginning
+
+        # Open the image from the buffer using Pillow's Image.open()
+        img = Image.open(buf)
+
+        # Check if the image object was created successfully
+        if img:
+            # Save the image object to the specified file path using Pillow's save()
+            img.save(file_path, "PNG")
+            print(f"Image saved successfully to: {file_path}")
+        else:
+            # This case is unlikely if savefig to buffer succeeded, but good practice
+            print("Error: Could not create image object from buffer.")
+            file_path = None # Ensure None is returned if image creation failed
+
+        buf.close() # Close the BytesIO buffer
 
     except Exception as e:
-        print("Error plotting stock data:", e)
+        print(f"Error processing stock data for {ticker}: {e}")
+        # Attempt to close any lingering plot figure in case of error mid-plot
+        if plt.gcf().get_axes():
+             plt.close()
+        file_path = None # Ensure None is returned on any exception
+
+    # Return the file path (will be None if any step failed)
+    return file_path
 
 
 # Main Flow 
-query = input("Enter your query: ")
-company = extract_company_name(query)
+def main_flow_extract_name():
+    query = input("Enter your query: ")
+    company = extract_company_name(query)
 
-if company:
-    print("Extracted stock:", company)
-    name, ticker = get_ticker_yahoo(company)
-    if ticker:
-        print(f"Found ticker: {ticker} ({name})")
-        show_yesterdays_stock_change(ticker, name)
-        plot_5_day_trend(ticker, name)
+    name=None
+    ticker=None
+    if company:
+        print("Extracted stock:", company)
+        name, ticker = get_ticker_yahoo(company)
+        if ticker:
+            print(f"Found ticker: {ticker} ({name})")
+            show_yesterdays_stock_change(ticker, name)
+            image=plot_5_day_trend(ticker, name)
+            return image,name,ticker
+        
+        else:
+            print("No ticker found.")
     else:
-        print("No ticker found.")
-else:
-    print("Could not extract a stock name.")
-
+        print("Could not extract a stock name.")
